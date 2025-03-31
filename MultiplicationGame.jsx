@@ -11,6 +11,12 @@ const MultiplicationGame = () => {
   const [currentQuestion, setCurrentQuestion] = useState(1);
   const [mistakes, setMistakes] = useState([]);
   
+  // Przechowywanie aktualnego pytania i odpowiedzi
+  const [question, setQuestion] = useState(null);
+  const [selectedAnswer, setSelectedAnswer] = useState(null);
+  const [showFeedback, setShowFeedback] = useState(false);
+  const [isAnswerCorrect, setIsAnswerCorrect] = useState(false);
+  
   // Screen templates
   const renderScreen1 = () => (
     <div className="flex flex-col h-full w-full max-w-md mx-auto bg-gray-50 rounded-lg shadow-lg p-6">
@@ -106,6 +112,9 @@ const MultiplicationGame = () => {
           setScore(0);
           setCurrentQuestion(1);
           setMistakes([]);
+          setShowFeedback(false);
+          setSelectedAnswer(null);
+          setQuestion(generateQuestion(gameMode, difficulty));
           setCurrentScreen('screen3');
         }}
       >
@@ -116,7 +125,44 @@ const MultiplicationGame = () => {
   );
   
   const renderScreen3 = () => {
-    const question = generateQuestion(gameMode, difficulty);
+    // Generuj nowe pytanie tylko jeśli nie ma aktualnego
+    if (!question) {
+      const newQuestion = generateQuestion(gameMode, difficulty);
+      setQuestion(newQuestion);
+      return null; // Renderuj po ustawieniu pytania
+    }
+    
+    const handleAnswerClick = (answer) => {
+      // Jeśli feedback jest już pokazywany, ignoruj kliknięcia
+      if (showFeedback) return;
+      
+      const isCorrect = answer === question.correctAnswer;
+      setSelectedAnswer(answer);
+      setIsAnswerCorrect(isCorrect);
+      setShowFeedback(true);
+      
+      if (isCorrect) {
+        setScore(score + 1);
+      } else {
+        setMistakes([...mistakes, {
+          question: question.text,
+          userAnswer: answer,
+          correctAnswer: question.correctAnswer
+        }]);
+      }
+      
+      // Przejdź do następnego pytania po 1.5s
+      setTimeout(() => {
+        if (currentQuestion < 10) {
+          setCurrentQuestion(currentQuestion + 1);
+          setSelectedAnswer(null);
+          setShowFeedback(false);
+          setQuestion(generateQuestion(gameMode, difficulty));
+        } else {
+          setCurrentScreen('screen4');
+        }
+      }, 1500);
+    };
     
     return (
       <div className="flex flex-col h-full w-full max-w-md mx-auto bg-gray-50 rounded-lg shadow-lg p-6">
@@ -124,6 +170,7 @@ const MultiplicationGame = () => {
           <button 
             className="p-2 rounded-full hover:bg-gray-200 flex items-center"
             onClick={() => setCurrentScreen('screen2')}
+            disabled={showFeedback}
           >
             <ArrowLeft className="w-5 h-5 text-gray-600 mr-1" />
             <span className="text-sm">Powrót</span>
@@ -140,45 +187,44 @@ const MultiplicationGame = () => {
         </div>
         
         <div className="flex flex-col flex-grow items-center justify-center bg-white rounded-lg shadow-sm p-6 mb-6">
-          <div className="text-3xl font-bold text-gray-800 mb-8 text-center">
+          <div className="text-3xl font-bold text-gray-800 mb-6 text-center">
             {question.text}
           </div>
           
+          {showFeedback && (
+            <div className={`mb-6 py-2 px-4 rounded-md font-bold text-center w-full ${
+              isAnswerCorrect ? 'bg-green-100 text-green-700 border border-green-300' : 'bg-red-100 text-red-700 border border-red-300'
+            }`}>
+              {isAnswerCorrect ? 'Dobrze!' : 'Zła odpowiedź'}
+            </div>
+          )}
+          
           <div className="grid grid-cols-2 gap-4 w-full">
-            {question.answers.map((answer, index) => (
-              <button 
-                key={index}
-                className="p-4 text-xl font-medium bg-blue-50 border-2 border-blue-200 rounded-md hover:bg-blue-100 transition-colors"
-                onClick={() => {
-                  if (currentQuestion < 10) {
-                    setCurrentQuestion(currentQuestion + 1);
-                    if (answer === question.correctAnswer) {
-                      setScore(score + 1);
-                    } else {
-                      setMistakes([...mistakes, {
-                        question: question.text,
-                        userAnswer: answer,
-                        correctAnswer: question.correctAnswer
-                      }]);
-                    }
-                  } else {
-                    // Last question
-                    if (answer === question.correctAnswer) {
-                      setScore(score + 1);
-                    } else {
-                      setMistakes([...mistakes, {
-                        question: question.text,
-                        userAnswer: answer,
-                        correctAnswer: question.correctAnswer
-                      }]);
-                    }
-                    setCurrentScreen('screen4');
-                  }
-                }}
-              >
-                {answer}
-              </button>
-            ))}
+            {question.answers.map((answer, index) => {
+              // Określ styl przycisku
+              let buttonStyle = "bg-blue-50 border-blue-200 hover:bg-blue-100";
+              
+              if (showFeedback) {
+                if (answer === question.correctAnswer) {
+                  buttonStyle = "bg-green-100 border-green-500 text-green-800";
+                } else if (answer === selectedAnswer && answer !== question.correctAnswer) {
+                  buttonStyle = "bg-red-100 border-red-500 text-red-800";
+                } else {
+                  buttonStyle = "bg-blue-50 border-blue-200 opacity-60";
+                }
+              }
+              
+              return (
+                <button 
+                  key={index}
+                  className={`p-4 text-xl font-medium border-2 rounded-md transition-colors ${buttonStyle}`}
+                  onClick={() => handleAnswerClick(answer)}
+                  disabled={showFeedback}
+                >
+                  {answer}
+                </button>
+              );
+            })}
           </div>
         </div>
       </div>
@@ -219,6 +265,9 @@ const MultiplicationGame = () => {
             setScore(0);
             setCurrentQuestion(1);
             setMistakes([]);
+            setSelectedAnswer(null);
+            setShowFeedback(false);
+            setQuestion(generateQuestion(gameMode, difficulty));
             setCurrentScreen('screen3');
           }}
         >
